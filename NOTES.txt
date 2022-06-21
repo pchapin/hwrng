@@ -1,0 +1,58 @@
+
+On Testing Randomness
+---------------------
+
++ RFC-1750
+
++ Knuth, "The Art of Computer Programming" (volume 2)
+
++ NIST publication 800-22
+
++ FIPS publication 140-2
+
+
+Different Kinds of Randomness
+-----------------------------
+
++ Chaitin-Kolmogorov randomness (Algorithmic randomness), defined in terms of computational
+  models. A string of bits is random iff it is shorter than any program that can produce it.
+
++ Statistical randomness, defined as having no recognizable patterns or regularities (in the
+  long run).
+
++ "True" randomness, defined as being unpredictable.
+
+How are these different definitions related?
+
+
+Bias Removal
+------------
+
+The output of the RNG will, most likely, contain bias (more 1s than 0s or visa-versa). The bias
+can be removed with hardware filtering or in software after the fact. Hardware bias removal
+methods include: feeding back the output to adjust the generator, using two generators with
+different mechanisms, beating the output against an uncorrelated clock, etc. Software bias
+removal methods include: von Neumann decorrelation, XOR with output of cryptographically strong
+PRNG, XOR two correlated bit streams together (see "piling-up" lemma), use a secure hash on the
+bits (little theoretical support?)
+
+von Neumann decorrelation:
+  00, 11 -> throw away
+  10     -> 1
+  01     -> 0
+
+This forces 50% occurance of 1 (and, of course, 0) bits , but it throws away 75% of the bits.
+Alternatively one might XOR adjacent bits together. This only throws away 50% of the bits.
+
+Both hardware and software "whitening" techniques should be used. Statistical tests on the
+device should probably be done before software bias removal so that the tests can better observe
+changes in the underlying hardware.
+
+
+Security Analysis
+-----------------
+
+Since this system will be used in security sensitive applications it may make sense to do a
+careful security review of the software and system design. It would be especially nice to use
+some formal methods in that review, but that may be too time consuming for the first version.
+

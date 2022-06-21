@@ -1,0 +1,157 @@
+
+\chapter{Requirements}
+\label{chapt:requirements}
+
+In this section we detail the requirements of the Random Thoughts generator. These requirements
+are used to drive the architecture and design of the system.
+
+Random Thoughts consists of two parts: a hardware generator that attaches to the computer using
+a standard USB version 2.0 connection, and a command interface for communicating with the
+generator hardware. The generator's direct I/O facilities shall consist of three LEDs as
+follows.
+
+\begin{enumerate}
+\item \textit{Green}: The generator is functioning correctly and has available entropy.
+
+\item \textit{Yellow}: The generator is functioning correctly but has limited or no entropy.
+  This condition should correct itself automatically after the generator has accumulated entropy
+  from its random source. Using the generator at this time is permitted but the quality of the
+  random numbers produced may be poor.
+
+\item \textit{Red}: The generator is not functioning properly. It should not be used in this
+  condition. Automatic correction of this condition is not expected.
+\end{enumerate}
+
+Setting up the generator shall only require connecting it to the computer. The generator draws
+all its power from the USB connection. No batteries or other adjustments are required.
+
+In addition the generator has a command language that details how the driver can interact with
+the hardware. This command language shall be usable by third parties for building drivers on
+systems not otherwise supported.
+
+At the level of the command language only two requests need be supported. The first is a
+non-blocking request for a specific number of bytes of random data that must be ``immediately''
+delivered, and a blocking request for a specific number of bytes of random data that must be
+delivered eventually. Immediate delivery means that the data is taken from a buffer in the
+generator. The request does not have to wait for the generator to produce all of the requested
+data. If the generator does not have all of the requested data on hand, it should return what it
+does have along with an appropriate count (which might be zero).
+
+When a blocking request is issued, the generator attempts to return all of the data requested,
+perhaps after a delay to generate that data. The data does not have to be returned all at once.
+The generator may return the data in several bursts depending on the size of the request and the
+size of the generator's on-board buffer.
+
+Note that the detailed format of the messages used in the command language is not specified
+here. In addition the command language must allow the generator hardware to signal an error
+condition to the calling software. This error condition is intended to indicate a hardware
+failure or bad statistics but the specific kinds of errors that are to be detected are not
+specified here. In particular the generator may or may not be capable of doing a statistical
+analysis of the numbers it produces. However, error codes for statistical problems should at
+least be reserved to streamline the development of future generators.
+
+\section{Core Requirements}
+\label{sec:core-requirements}
+
+The following requirements apply:
+
+\begin{itemize}
+\item \textbf{Core.GenSPARK}. The code on the generator hardware itself shall be in SPARK 2014
+  and proved free of the possibility of runtime error.
+\item \textbf{Core.Ravenscar}. The code on the generator hardware itself shall be written to
+  conform with the restrictions of the Ravenscar profile.\footnote{This is likely implied by
+    \textbf{Core.GenSPARK} anyway}.
+\item \textbf{Core.TestsAda}. The statistical testing programs that run on the host shall be
+  written in Ada.
+\item \textbf{Core.Monitor}. The generator shall have a monitoring function that alerts the user
+  if the statistics of the generated random numbers is poor.
+\end{itemize}
+
+The details of \textbf{Core.Monitor} are left unspecified. However, the monitoring function must
+have access to enough generator data to compute reasonable conclusions about the quality of the
+generator's output. It is unspecified if the statistical monitoring function is implemented in
+the generator hardware or in the driver or someplace else.
+
+The statistical monitoring discussed here is distinct from the entropy monitoring indicated by
+the LEDs on the generator hardware. It is possible for the generator to believe it has
+sufficient entropy to produce random numbers and yet produce such numbers with low quality. The
+statistical monitoring function serves as a software check against biases that might be inherent
+in the generation process.
+
+\section{Non-Functional Requirements}
+\label{sec:non-functional}
+
+In this section we describe the non-functional requirements of Random Thoughts. The following
+requirements apply:
+
+\begin{itemize}
+
+\item \textbf{NonFun.Review}. All software shall be subjected to a careful security analysis
+  using both human review and automated tools where appropriate. The precise tools used are not
+  specified here but they should be selected based availability and the current state of the
+  art.
+
+\item \textbf{NonFun.Platform}. Random Thoughts shall support both 64 bit Ubuntu Linux 20.04
+  LTS. The low level interface shall be sufficiently well documented so that third parties could
+  reasonably create drivers or interface libraries for other systems.
+
+\item \textbf{NonFun.Deployment}. Software installers, with appropriate digital signatures,
+  shall be provided for all supported systems in a manner that is standard for each system.
+  All software shall be provided in source form with full documentation to enable (and
+  encourage) review.
+
+\item \textbf{NonFun.Performance}. The hardware shall be capable of producing random 256 bit
+  session keys at the rate of one key per minute or greater. The system shall cache random data
+  in such a way that it can satisfy a request for up to eight 256 bit random keys
+  ``immediately'' provided there is sufficient lead time.
+
+  Memory consumption and CPU utilization of the system shall be ``negligible.'' No network
+  bandwidth shall be used by the system when it is in normal operation. The system shall consume
+  one USB slave position on the host.
+
+\item \textbf{NonFun.Security}. The standard assumption shall be made that an attacker has full
+  knowledge of all algorithms, software, and hardware that is used. It shall also be assumed
+  that the attacker has no physical access to the hardware during its operation (specifically
+  during the production of the n bits mentioned below), nor has any administrative access on the
+  machine to which Random Thoughts is connected.
+
+  The security characteristic of Random Thoughts is as follows: Given knowledge of $n$ bits of
+  random output, where $n$ is in the range $0 \le n \le 2^{32+3}$, an attacker can predict the
+  next bit with probability of no more than 0.5001.
+
+\item \textbf{NonFun.Scale}. The system shall be able to service multiple users of the host
+  machine simultaneously, but note that it's overall performance as detailed above need not
+  affected by the number of users. For example, two users may see an average rate of random
+  number production of one 256 bit key every two minutes, etc. The generator only needs to
+  service a single computer at a time.
+
+\item \textbf{NonFun.Documentation}. The following documents shall be made available to users
+  for review:
+  \begin{itemize}
+  \item \textit{Design Documentation}. There shall be a document containing a detailed design of
+    Random Thoughts describing how the various components of the system work. It shall include
+    block diagrams, schematics, or code snippets, as appropriate.
+  \item \textit{Test Documentation}. There shall be a document describing how Random Thoughts
+    and its associated software was tested, along with mathematical justification of the
+    techniques used.
+  \item \textit{User Documentation}. There shall be a document describing how to install,
+    verify, and use Random Thoughts. In addition this document shall describe the low level
+    command language understood by the system so third parties can build their own interfaces if
+    desired.
+  \item \textit{Web Site}. There shall be a web site that describes Random Thoughts and that
+    provides software updates and other up-to-the-minute information about the system.
+  \end{itemize}
+
+\item \textbf{NonFun.Formats}. The communication protocol between the hardware and software
+  components of the system shall be proprietary but also documented.
+
+\item \textbf{NonFun.Internationalization}. All user interface elements and documentation shall
+  be in English and nationalized for the United States. As an extension the system may make use
+  of localization information provided by the host operating system.
+
+\item \textbf{NonFun.Environment}. Random Thoughts shall be able to operate in typical office
+  conditions. No special environmental hardening is required. However, the addition of shielding
+  from electromagnetic snooping is a likely extension. The hardware component of the system
+  shall be no larger than 8'' x 4'' x 4'' and ideally as small as feasible.
+
+\end{itemize}

@@ -1,0 +1,164 @@
+
+\chapter{Architecture}
+\label{chapt:architecture}
+
+In this section we describe the high level architecture of Random Thoughts. This includes both
+the architecture of the system and the architecture of the development environment.
+
+\section{System Architecture}
+
+The system architecture describes the structure of the deployed system. There are three aspects
+of the system to consider:
+
+\begin{enumerate}
+\item The hardware controller and noise generating hardware used as the source of randomness.
+\item The command language used between the host computer and the hardware controller.
+\item The driver and library software on the host computer.
+\end{enumerate}
+
+Each of these aspects are described in separate subsections below.
+
+\subsection{Hardware Architecture}
+
+The hardware controller consists of a low cost, single board microcontroller based on an ARM
+architecture processor. Specifically, we use the STM32F4DISCOVERY with the STM32F407VG
+microcontroller (32~bit ARM Cortex M4). In normal operation the controller is connected to a
+host computer as a USB slave via a USB 2.0 (or higher) interface. A virtual serial port is
+created on the USB interface so the controller appears as a serially connected device from the
+point of view of the host computer.
+
+Also connected to the controller, via it's general purpose I/O interface, is a supplementary
+board containing a white noise generator together with an appropriate analog to digital
+converter (ADC) to convert the generated noise into a stream of digital values. The word size of
+the ADC is 8~bits; if more bits are available, only the lower 8~bits are used.
+
+A software task on the controller reads the ADC ten times per second and appends the 8 bit value
+read to a buffer of random data 2~KiB in size called the ``entropy pool.'' The part of the pool
+that is filled with data is called the ``active pool.'' In normal operation, the pool is
+completely filled, and the active pool is the same as the whole pool. Initially, while the pool
+is filling (or later after some data has been extracted from it), the yellow LED on the
+controller is lite. When the pool is completely filled the green LED on the controller lights
+and the yellow LED turns off. The red LED on the controller is used to indicate an error
+condition.
+
+Once the pool is filled, whenever a new value is read from the ADC, the following steps are
+taken:
+
+\begin{enumerate}
+\item The entire pool is hashed using SHA-256 and the resulting hash value is appended to the
+  pool, causing the oldest 32~bytes to be discarded.
+\item The new value from the ADC is appended to the pool, causing the oldest byte to be
+  discarded.
+\end{enumerate}
+
+Thus 33~bytes are discarded from the pool for each new byte added. However, those bytes
+participate in the hash that gets appended (and that hash is further hashed again, etc.).
+
+A second task on the controller interacts with the USB interface, receiving commands from the
+host computer, interpreting those commands, and acting on them. This ``interface task'' prepares
+random data from the entropy pool in a separate buffer area with a size equal to the amount of
+random data requested (which might be smaller or larger than the size of the active pool). The
+task takes data from the pool, oldest data first, thereby reducing the active pool size, waiting
+for more data to appear in the pool if necessary to completely fill the result buffer. Note that
+when the pool is less than completely filled, the hashing process described above is temporarily
+suspended until the pool is filled.
+
+\subsection{Command Language}
+
+This subsection describes the command language used between the host computer and the hardware
+controller. These commands and their corresponding responses flow over a serial connection and,
+for convenience, are entirely ASCII text. The generator hardware never sends an unsolicited
+response. Furthermore, every command sent by the PC elicits a response of some kind (even if
+only a success code). This behavior facilities testing the generator hardware using a standard
+terminal emulation program.
+
+Every command and every response is terminated by a CR/LF pair. Lines will never exceed 80
+characters in length. If a command line is longer than 80 characters, the extra characters are
+ignored. Unless otherwise mentioned below, commands and responses are only one line. Unless
+otherwise mentioned below, responses are returned in a "timely" manner. Commands are case
+insensitive.
+
+\begin{verbatim}
+Command: CHECK
+Purpose:
+  Verify proper operation of the generator hardware
+
+Possile responses:
+   "!OK"
+   "!OK: STATISTICS UNKNOWN"
+   "!HARDWARE FAILURE: [message]"
+   "!BAD STATISTICS"
+   "!SOFTWARE FAILURE: [message]"
+   "!UNKNOWN ERROR."
+\end{verbatim}
+
+Note that support for hardware evaluation of statistics is not required. The generator hardware
+should probably provide a way to tell the calling software if it does statistical analysis or
+not. How that might be done is currently unspecified.
+
+\begin{verbatim}
+Command: GET IMMEDIATE n
+Purpose:
+  Obtain n bits of random data "immediately" (without blocking)
+
+Possible responses:
+  A string of '0' and '1' characters of size n bits
+  One of the same responses to the CHECK command
+  "!INSUFFICIENT DATA: n"
+\end{verbatim}
+
+Errors are indicated as for the CHECK command. The !INSUFFICIENT DATA response is sent if there
+is not enough entropy to satisfy the request immediately. The value of $n$ returned by
+!INSUFFICIENT DATA is the number of bits currently in the buffer. A GET IMMEDIATE with that
+value of $n$ or less will definitely succeed. Use GET IMMEDIATE 0 to elicit an insufficient data
+response regardless of the amount of data available, and to thus learn how much data is
+available.
+
+If <n> is greater than 80, the data will be delivered in multiple lines. The precise number of
+lines is unspecified, but no line will be blank. The value of $n$ in the GET IMMEDIATE command
+must be greater than or equal to zero.
+
+\begin{verbatim}
+Command: GET n
+Purpose:
+  Obtain n bits of random data, possibly blocking
+
+Possible responses:
+  A string of '0' and '1' characters of size n bits
+  One of the same responses to the CHECK command
+\end{verbatim}
+
+The returned data might be possibly split over several lines as described above, until a total
+of $n$ bits are returned. If all the bits are not yet available, the generator hardware will
+wait until they are, either returning the bits as they are produced (meaning in spurts) or in a
+single block once they are all produced. The generator hardware will accept no other commands
+while it is generating data. However, the unit may output an error response (as defined for the
+CHECK command) on a line by itself at any time during the random output.
+
+\subsection{Driver/Library Architecture}
+
+There are two parts to the software that runs on the computer host. The first part is a kernel
+level driver that presents a device file such that when the device file is read, random binary
+data is returned following the usual semantics for reading devices. The driver should also
+provide a ``raw'' mode that allows applications to write commands directly in the command
+language described above and read the corresponding responses. This allows applications to be
+built that interact directly with the controller hardware for special purposes.
+
+The second software component is a library that uses the device in its raw mode but presents a
+simple API to the application for reading random binary data. That that respect the library
+provides the same interface as the driver, except in application space. However, this allows the
+library to also do significant statistical analysis on the data stream before returning it to
+the application. That analysis can be used to monitor the statistical properties of the data and
+alert the application if any biases are found. The goal of the library is thus to keep the
+statistical analysis out of kernel space.
+
+\section{Development Environment Architecture}
+
+Since the development is done using SPARK/Ada, AdaCore's GPS is the primary development
+environment. That environment includes the ability to program and debug code on the
+STM32F4DISCOVERY board. See Section~\ref{chapt:test-plan} for more information about the test
+plan for the system.
+
+For convenience, the development platform is the same as the initial target platform: Ubuntu
+Linux 20.04. Driver development takes place inside a Virtual machine to avoid the possibility of
+destablizing the development platform while debugging the driver.
