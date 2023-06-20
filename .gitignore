@@ -1,7 +1,7 @@
-# Object file
+# Object files
 *.o
 
-# Ada Library Information
+# Ada library information
 *.ali
 
 # Documentation
@@ -12,3 +12,8 @@ RandomThoughts.log
 RandomThoughts.out
 RandomThoughts.pdf
 RandomThoughts.toc
+
+Proposal.pdf
+
+# macOS artifacts
+.DS_Store
