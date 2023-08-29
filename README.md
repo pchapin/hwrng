@@ -8,5 +8,5 @@ this project would be a useful product. Also a complete project might serve as a
 
 Currently the code for this project is written in Ada.
 
-Peter C. Chapin  
-pchapin@vtc.edu
+Peter Chapin  
+peter.chapin@vermontstate.edu  
