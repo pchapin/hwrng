@@ -24,7 +24,7 @@ The hardware controller consists of a low cost, single board microcontroller bas
 architecture processor. Specifically, we use the STM32F4DISCOVERY with the STM32F407VG
 microcontroller (32~bit ARM Cortex M4). In normal operation the controller is connected to a
 host computer as a USB slave via a USB 2.0 (or higher) interface. A virtual serial port is
-created on the USB interface so the controller appears as a serially connected device from the
+created on the USB interface, so the controller appears as a serially connected device from the
 point of view of the host computer.
 
 Also connected to the controller, via it's general purpose I/O interface, is a supplementary
@@ -51,17 +51,17 @@ taken:
   discarded.
 \end{enumerate}
 
-Thus 33~bytes are discarded from the pool for each new byte added. However, those bytes
+Thus, 33~bytes are discarded from the pool for each new byte added. However, those bytes
 participate in the hash that gets appended (and that hash is further hashed again, etc.).
 
 A second task on the controller interacts with the USB interface, receiving commands from the
 host computer, interpreting those commands, and acting on them. This ``interface task'' prepares
 random data from the entropy pool in a separate buffer area with a size equal to the amount of
 random data requested (which might be smaller or larger than the size of the active pool). The
-task takes data from the pool, oldest data first, thereby reducing the active pool size, waiting
-for more data to appear in the pool if necessary to completely fill the result buffer. Note that
-when the pool is less than completely filled, the hashing process described above is temporarily
-suspended until the pool is filled.
+task takes data from the pool, the oldest data first, thereby reducing the active pool size,
+waiting for more data to appear in the pool if necessary to completely fill the result buffer.
+Note that when the pool is less than completely filled, the hashing process described above is
+temporarily suspended until the pool is filled.
 
 \subsection{Command Language}
 
@@ -72,18 +72,18 @@ response. Furthermore, every command sent by the PC elicits a response of some k
 only a success code). This behavior facilities testing the generator hardware using a standard
 terminal emulation program.
 
-Every command and every response is terminated by a CR/LF pair. Lines will never exceed 80
+Every command and every response are terminated by a CR/LF pair. Lines will never exceed 80
 characters in length. If a command line is longer than 80 characters, the extra characters are
 ignored. Unless otherwise mentioned below, commands and responses are only one line. Unless
-otherwise mentioned below, responses are returned in a "timely" manner. Commands are case
-insensitive.
+otherwise mentioned below, responses are returned in a "timely" manner. Commands are
+case-insensitive.
 
 \begin{verbatim}
 Command: CHECK
 Purpose:
   Verify proper operation of the generator hardware
 
-Possile responses:
+Possible responses:
    "!OK"
    "!OK: STATISTICS UNKNOWN"
    "!HARDWARE FAILURE: [message]"
